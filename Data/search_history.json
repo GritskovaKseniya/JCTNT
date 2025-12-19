@@ -1,0 +1,14 @@
+[
+    {
+        "fisico": "GD_DORIG",
+        "logico": "RigaDocumento"
+    },
+    {
+        "fisico": "MD_ARTI",
+        "logico": "ArticoloConfiguratore"
+    },
+    {
+        "fisico": "MD_ARTI",
+        "logico": "Articolo"
+    }
+]

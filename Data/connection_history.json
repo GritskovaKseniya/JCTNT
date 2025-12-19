@@ -1,0 +1,16 @@
+[
+    {
+        "host": "oracle-ud-42",
+        "port": "1521",
+        "sid": "ORCL",
+        "username": "marin280_fw",
+        "password": "marin280_fw"
+    },
+    {
+        "host": "oracle-ud-42",
+        "port": "1521",
+        "sid": "ORCL",
+        "username": "template280_db",
+        "password": "template280_db"
+    }
+]
