@@ -533,14 +533,41 @@ btnTranslate.addEventListener('click', async () => {
         return;
     }
 
-    const tableRows = dictionary.filter(r =>
+    let tableRows = dictionary.filter(r =>
         normalizeTableName(r.TABELLA_FISICA) === tableInput ||
         normalizeTableName(r.TABELLA_LOGICA) === tableInput
     );
 
     if (tableRows.length === 0) {
-        alert('Tabella non trovata nel dizionario');
-        return;
+        const likeMatches = dictionary.filter(r =>
+            normalizeTableName(r.TABELLA_FISICA).includes(tableInput) ||
+            normalizeTableName(r.TABELLA_LOGICA).includes(tableInput)
+        );
+
+        if (likeMatches.length === 0) {
+            alert('Tabella non trovata nel dizionario');
+            return;
+        }
+
+        const tableNames = new Map();
+        likeMatches.forEach(r => {
+            if (!tableNames.has(r.TABELLA_FISICA)) {
+                tableNames.set(r.TABELLA_FISICA, r.TABELLA_LOGICA);
+            }
+        });
+
+        if (tableNames.size > 1) {
+            const list = Array.from(tableNames.entries())
+                .slice(0, 10)
+                .map(([fisico, logico]) => `${fisico} - ${logico}`)
+                .join(', ');
+            const suffix = tableNames.size > 10 ? '...' : '';
+            alert(`Trovate piu tabelle, specifica meglio: ${list}${suffix}`);
+            return;
+        }
+
+        const matchPhysical = tableNames.keys().next().value;
+        tableRows = dictionary.filter(r => r.TABELLA_FISICA === matchPhysical);
     }
 
     currentTablePhysical = tableRows[0].TABELLA_FISICA;
