@@ -2,10 +2,11 @@ from flask import Flask, render_template, request, jsonify
 import oracledb
 import json
 import os
+from waitress import serve
 
 # Abilita thick mode per versioni Oracle più vecchie
 try:
-    oracledb.init_oracle_client()
+    oracledb.init_oracle_client(lib_dir=r"C:\oracle\19c\x64\client\bin")
 except:
     pass
 
@@ -183,4 +184,4 @@ def api_connect():
         return jsonify({'success': False, 'message': f'Errore: {str(e)}'})
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    serve(app, host="0.0.0.0", port=5000)

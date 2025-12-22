@@ -35,6 +35,9 @@ const connHistorySelect = $('conn-history-select');
 const searchHistorySelect = $('search-history-select');
 const currentTableName = $('current-table-name');
 
+const BASE = window.location.pathname.replace(/\/$/, '');
+console.log(BASE);
+
 // --- Normalization ---
 function normalizeTableName(value) {
     return (value || '').replace(/\s+/g, '').trim().toUpperCase();
@@ -92,7 +95,7 @@ function copyCell(td) {
 // --- API Calls ---
 async function loadConnectionHistory() {
     try {
-        const res = await fetch('/api/connection-history');
+        const res = await fetch(`${BASE}/api/connection-history`);
         connectionHistory = await res.json();
         connHistorySelect.innerHTML = '<option value="">-- Inserimento manuale --</option>';
         connectionHistory.forEach((c, i) => {
@@ -103,7 +106,7 @@ async function loadConnectionHistory() {
 
 async function loadSearchHistory() {
     try {
-        const res = await fetch('/api/search-history');
+        const res = await fetch(`${BASE}/api/search-history`);
         searchHistory = await res.json();
         searchHistorySelect.innerHTML = '<option value="">-- Seleziona o scrivi manualmente --</option>';
         searchHistory.forEach((s, i) => {
@@ -114,7 +117,7 @@ async function loadSearchHistory() {
 
 async function loadConnectionData() {
     try {
-        const res = await fetch('/api/connection-data');
+        const res = await fetch(`${BASE}/api/connection-data`);
         const data = await res.json();
         if (data.host) $('conn-host').value = data.host;
         if (data.port) $('conn-port').value = data.port;
@@ -164,7 +167,7 @@ btnConnect.addEventListener('click', async () => {
     btnNextContainer.style.display = 'none';
 
     try {
-        const res = await fetch('/api/connect', {
+        const res = await fetch(`${BASE}/api/connect`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -575,7 +578,7 @@ btnTranslate.addEventListener('click', async () => {
     currentTableName.textContent = `${currentTablePhysical} - ${currentTableLogical}`;
 
     // Save to search history
-    await fetch('/api/add-search-history', {
+    await fetch(`${BASE}/api/add-search-history`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
