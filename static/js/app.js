@@ -35,6 +35,12 @@ const connHistorySelect = $('conn-history-select');
 const searchHistorySelect = $('search-history-select');
 const currentTableName = $('current-table-name');
 
+// --- Normalization ---
+function normalizeTableName(value) {
+    return (value || '').replace(/\s+/g, '').trim().toUpperCase();
+}
+
+
 // --- Card Toggle ---
 function toggleCard(cardId) {
     const card = $(cardId);
@@ -509,7 +515,7 @@ function showKseniiaEasterEgg() {
 
 // --- Event: Translate ---
 btnTranslate.addEventListener('click', async () => {
-    const tableInput = $('input-table').value.trim().toUpperCase();
+    const tableInput = normalizeTableName($('input-table').value);
     const fieldsInput = $('input-fields').value.trim();
 
     if (!tableInput) {
@@ -528,8 +534,8 @@ btnTranslate.addEventListener('click', async () => {
     }
 
     const tableRows = dictionary.filter(r =>
-        r.TABELLA_FISICA.toUpperCase() === tableInput ||
-        r.TABELLA_LOGICA.toUpperCase() === tableInput
+        normalizeTableName(r.TABELLA_FISICA) === tableInput ||
+        normalizeTableName(r.TABELLA_LOGICA) === tableInput
     );
 
     if (tableRows.length === 0) {
