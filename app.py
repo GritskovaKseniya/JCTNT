@@ -3,6 +3,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 import oracledb
 import json
 import os
+from tecsql_translator import normalize_query_text, translate_tecsql, update_mappings
 from waitress import serve
 
 # Abilita thick mode per versioni Oracle più vecchie
@@ -71,6 +72,7 @@ def write_json(filepath, data):
     with open(filepath, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=4)
 
+
 # --- Connection History ---
 def get_connection_history():
     return read_json(CONNECTION_HISTORY_FILE, [])
@@ -124,6 +126,20 @@ def api_add_search_history():
     data = request.json
     add_search_to_history(data.get('fisico', ''), data.get('logico', ''))
     return jsonify({'success': True})
+
+@app.route('/api/translate-query', methods=['POST'])
+def api_translate_query():
+    # Translate TecSql to SQL using the legacy parser.
+    data = request.get_json(silent=True) or {}
+    normalized = normalize_query_text(data.get('query', ''))
+    if not normalized:
+        return jsonify({'error': 'Query TecSql vuota'}), 400
+
+    try:
+        sql = translate_tecsql(normalized)
+        return jsonify({'normalized_query': normalized, 'sql': sql})
+    except Exception as exc:
+        return jsonify({'error': str(exc)}), 400
 
 @app.route('/api/connect', methods=['POST'])
 def api_connect():
@@ -205,6 +221,9 @@ def api_connect():
         conn_data = {'host': host, 'port': port, 'sid': sid, 'username': username, 'password': password}
         write_json(CONNECTION_FILE, conn_data)
         add_connection_to_history(conn_data)
+
+        # Aggiorna mapping TecSql per il traduttore
+        update_mappings(rows)
         
         return jsonify({
             'success': True,

@@ -1,4 +1,4 @@
-# JCTNT - Jflex Cheap Table Name Translator
+# JTNT - Jflex Table Name Translator
 
 Applicazione web per la traduzione bidirezionale dei nomi di tabelle e campi JAS/JFlex tra nomenclatura fisica (database) e logica (applicativa).
 
@@ -136,7 +136,7 @@ Apri il browser su: **http://localhost:5000**
 
 ## Crediti
 
-**Applicazione:** JCTNT - Jflex Cheap Table Name Translator  
+**Applicazione:** JTNT - Jflex Table Name Translator  
 **Versione:** 2.0  
 **Data creazione:** 11-12-2025  
 **Autore:** Angelo J. Marin  

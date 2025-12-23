@@ -55,7 +55,7 @@
         <div style="display:flex;align-items:center;">
             <svg class="icon icon-header icon-white"><use href="#icon-swap"/></svg>
             <div>
-                <h1><span>JCTNT</span> - Jflex Cheap Table Name Translator</h1>
+                <h1><span>JTNT</span> - Jflex Table Name Translator</h1>
                 <div class="header-sub">Traduttore nomi fisici ↔ logici per tabelle e campi JAS</div>
             </div>
         </div>
@@ -130,31 +130,71 @@
                     <svg class="icon collapse-icon"><use href="#icon-chevron"/></svg>
                 </div>
                 <div class="card-body">
-                    <div class="form-group">
-                        <label>Ricerche recenti</label>
-                        <select id="search-history-select">
-                            <option value="">-- Seleziona o scrivi manualmente --</option>
-                        </select>
+                    <div class="tabs" id="tabs-search">
+                        <div class="tab active" data-tab="tab-search">
+                            <svg class="icon"><use href="#icon-search"/></svg>
+                            Ricerca
+                        </div>
+                        <div class="tab" data-tab="tab-translator">
+                            <svg class="icon"><use href="#icon-swap"/></svg>
+                            Translator
+                        </div>
                     </div>
 
-                    <div class="form-group">
-                        <label>Nome Tabella (fisico o logico)</label>
-                        <input type="text" id="input-table" placeholder="es. MD_ARTI oppure Articoli">
-                    </div>
-                    <div class="form-group">
-                        <label>Campi da cercare (opzionale)</label>
-                        <textarea id="input-fields" rows="3" placeholder="Lascia vuoto per tutti i campi, oppure inserisci i nomi separati da virgola o a capo"></textarea>
+                    <div id="tab-search" class="tab-content active">
+                        <div class="form-group">
+                            <label>Ricerche recenti</label>
+                            <select id="search-history-select">
+                                <option value="">-- Seleziona o scrivi manualmente --</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Nome Tabella (fisico o logico)</label>
+                            <input type="text" id="input-table" placeholder="es. MD_ARTI oppure Articoli">
+                        </div>
+                        <div class="form-group">
+                            <label>Campi da cercare (opzionale)</label>
+                            <textarea id="input-fields" rows="3" placeholder="Lascia vuoto per tutti i campi, oppure inserisci i nomi separati da virgola o a capo"></textarea>
+                        </div>
+
+                        <div class="buttons-row">
+                            <button class="btn btn-primary" id="btn-translate">
+                                <svg class="icon icon-white"><use href="#icon-search"/></svg>
+                                Traduci
+                            </button>
+                            <button class="btn btn-primary" id="btn-back">
+                                <svg class="icon icon-white"><use href="#icon-refresh"/></svg>
+                                Nuova Connessione
+                            </button>
+                        </div>
                     </div>
 
-                    <div class="buttons-row">
-                        <button class="btn btn-primary" id="btn-translate">
-                            <svg class="icon icon-white"><use href="#icon-search"/></svg>
-                            Traduci
-                        </button>
-                        <button class="btn btn-primary" id="btn-back">
-                            <svg class="icon icon-white"><use href="#icon-refresh"/></svg>
-                            Nuova Connessione
-                        </button>
+                    <div id="tab-translator" class="tab-content">
+                        <div class="translator-grid" id="translator-grid">
+                            <div class="form-group translator-panel">
+                                <label for="input-tecsql">TecSql</label>
+                                <textarea id="input-tecsql" rows="8" placeholder="Inserisci TecSql qui..."></textarea>
+                            </div>
+                            <div class="translator-swap">
+                                <button class="btn btn-secondary btn-swap" id="btn-swap" type="button" title="Swap direction">
+                                    <svg class="icon"><use href="#icon-swap"/></svg>
+                                </button>
+                            </div>
+                            <div class="form-group translator-panel">
+                                <label for="output-sql">SQL</label>
+                                <textarea id="output-sql" rows="8" readonly placeholder="Output SQL..."></textarea>
+                            </div>
+                        </div>
+
+                        <div id="translate-status" class="status-box info hidden"></div>
+
+                        <div class="buttons-row translator-actions">
+                            <button class="btn btn-primary" id="btn-translate-query">
+                                <svg class="icon icon-white"><use href="#icon-arrow-right"/></svg>
+                                Translate
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -170,7 +210,7 @@
                 </div>
                 <div class="card-body">
                     <!-- Tabs -->
-                    <div class="tabs">
+                    <div class="tabs" id="tabs-results">
                         <div class="tab active" data-tab="tab-fields">
                             <svg class="icon"><use href="#icon-table"/></svg>
                             Tabella

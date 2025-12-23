@@ -1,5 +1,5 @@
 /* ===========================================
-   JCTNT - Jflex Cheap Table Name Translator
+   JTNT - Jflex Table Name Translator
    Main Stylesheet
    =========================================== */
 
@@ -214,6 +214,7 @@ body {
 .status-box.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
 .status-box.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
 .status-box.info { background: #e7f3ff; color: #004085; border: 1px solid #b8daff; }
+.status-box.hidden { display: none; }
 
 /* --- Tabs --- */
 .tabs {
@@ -248,6 +249,39 @@ body {
     width: 100%;
 }
 .tab-content.active { display: flex; }
+
+/* --- Translator --- */
+.translator-grid {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 15px;
+    align-items: center;
+}
+.translator-panel { margin: 0; }
+.translator-panel textarea {
+    min-height: 180px;
+    resize: vertical;
+}
+.translator-swap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.btn-swap {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border-radius: 50%;
+}
+.btn-swap .icon { margin-right: 0; }
+.translator-grid.is-swapped .btn-swap .icon { transform: rotate(180deg); }
+.translator-actions { justify-content: flex-end; }
+textarea[readonly] { background: #f4f7fb; color: #2d3436; }
+
+@media (max-width: 900px) {
+    .translator-grid { grid-template-columns: 1fr; }
+    .translator-swap { order: 2; }
+}
 
 /* --- Tables --- */
 .table-container {
