@@ -1,5 +1,5 @@
 /* ===========================================
-   JCTNT - Jflex Cheap Table Name Translator
+   JTNT - Jflex Table Name Translator
    Main Application Script
    =========================================== */
 
@@ -14,6 +14,7 @@ let currentTableLogical = '';
 let currentIndexes = [];
 let currentIndexColumns = [];
 let hasSearchResults = false;
+let isTranslating = false;
 
 // --- DOM Elements ---
 const $ = id => document.getElementById(id);
@@ -34,6 +35,11 @@ const indexesBody = $('indexes-body');
 const connHistorySelect = $('conn-history-select');
 const searchHistorySelect = $('search-history-select');
 const currentTableName = $('current-table-name');
+const inputTecsql = $('input-tecsql');
+const outputSql = $('output-sql');
+const translateStatus = $('translate-status');
+const btnTranslateQuery = $('btn-translate-query');
+const translateBtnDefault = btnTranslateQuery ? btnTranslateQuery.innerHTML : '';
 
 // --- Normalization ---
 function normalizeTableName(value) {
@@ -71,14 +77,46 @@ function setResultsEnabled(enabled) {
 }
 
 // --- Tab Management ---
-document.querySelectorAll('.tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-        tab.classList.add('active');
-        $(tab.dataset.tab).classList.add('active');
+function initTabs() {
+    document.querySelectorAll('.tabs').forEach(container => {
+        const tabs = Array.from(container.querySelectorAll('.tab'));
+        if (tabs.length === 0) return;
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                tabs.forEach(t => t.classList.remove('active'));
+                tabs.forEach(t => {
+                    const contentId = t.dataset.tab;
+                    const content = $(contentId);
+                    if (content) content.classList.remove('active');
+                });
+
+                tab.classList.add('active');
+                const activeContent = $(tab.dataset.tab);
+                if (activeContent) activeContent.classList.add('active');
+            });
+        });
     });
-});
+}
+
+function setActiveTab(containerId, tabId) {
+    const container = $(containerId);
+    if (!container) return;
+    const tabs = Array.from(container.querySelectorAll('.tab'));
+    tabs.forEach(t => t.classList.remove('active'));
+    tabs.forEach(t => {
+        const contentId = t.dataset.tab;
+        const content = $(contentId);
+        if (content) content.classList.remove('active');
+    });
+
+    const activeTab = tabs.find(t => t.dataset.tab === tabId);
+    if (activeTab) {
+        activeTab.classList.add('active');
+        const activeContent = $(tabId);
+        if (activeContent) activeContent.classList.add('active');
+    }
+}
 
 // --- Clipboard ---
 function copyCell(td) {
@@ -87,6 +125,34 @@ function copyCell(td) {
         td.classList.add('copied');
         setTimeout(() => td.classList.remove('copied'), 1000);
     });
+}
+
+// --- Translator UI ---
+function setTranslateStatus(type, message) {
+    if (!translateStatus) return;
+    translateStatus.className = `status-box ${type}`;
+    translateStatus.textContent = message;
+}
+
+function clearTranslateStatus() {
+    if (!translateStatus) return;
+    translateStatus.className = 'status-box info hidden';
+    translateStatus.textContent = '';
+}
+
+function setTranslateLoading(loading) {
+    isTranslating = loading;
+    if (!btnTranslateQuery) return;
+    btnTranslateQuery.disabled = loading;
+    btnTranslateQuery.innerHTML = loading
+        ? '<span class="loader"></span> Translating...'
+        : translateBtnDefault;
+}
+
+function updateTranslateButtonState() {
+    if (!btnTranslateQuery || isTranslating) return;
+    const hasInput = inputTecsql && inputTecsql.value.trim().length > 0;
+    btnTranslateQuery.disabled = !hasInput;
 }
 
 // --- API Calls ---
@@ -154,6 +220,50 @@ $('input-table').addEventListener('keydown', (e) => {
         }
     }
 });
+
+// --- Event: Translator Input ---
+if (inputTecsql) {
+    inputTecsql.addEventListener('input', () => {
+        clearTranslateStatus();
+        updateTranslateButtonState();
+    });
+}
+
+// --- Event: Translate Query ---
+if (btnTranslateQuery) {
+    btnTranslateQuery.addEventListener('click', async () => {
+        const rawQuery = inputTecsql ? inputTecsql.value.trim() : '';
+        if (!rawQuery) return;
+
+        clearTranslateStatus();
+        setTranslateLoading(true);
+        if (outputSql) outputSql.value = '';
+
+        try {
+            // Send TecSql to the backend for normalization and parsing.
+            const res = await fetch('/api/translate-query', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query: rawQuery })
+            });
+            const data = await res.json();
+
+            if (!res.ok || data.error) {
+                // Inline error message (no alerts).
+                setTranslateStatus('error', data.error || 'Errore di traduzione');
+            } else {
+                // Populate translated SQL output.
+                if (outputSql) outputSql.value = data.sql || '';
+                setTranslateStatus('success', 'Traduzione completata');
+            }
+        } catch (e) {
+            setTranslateStatus('error', 'Errore di comunicazione con il server');
+        }
+
+        setTranslateLoading(false);
+        updateTranslateButtonState();
+    });
+}
 
 // --- Event: Connect ---
 btnConnect.addEventListener('click', async () => {
@@ -622,11 +732,8 @@ btnTranslate.addEventListener('click', async () => {
     searchCard.classList.remove('expanded');
     resultsCard.classList.add('expanded');
 
-    // Reset to first tab
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-    document.querySelector('.tab[data-tab="tab-fields"]').classList.add('active');
-    $('tab-fields').classList.add('active');
+    // Reset results to first tab
+    setActiveTab('tabs-results', 'tab-fields');
 });
 
 // --- Event: Copy All Fields ---
@@ -675,5 +782,8 @@ btnCopyIndexes.addEventListener('click', () => {
 });
 
 // --- Init ---
+initTabs();
+clearTranslateStatus();
+updateTranslateButtonState();
 loadConnectionData();
 loadConnectionHistory();
