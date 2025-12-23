@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, jsonify
+from werkzeug.middleware.proxy_fix import ProxyFix
 import oracledb
 import json
 import os
@@ -11,6 +12,33 @@ except:
     pass
 
 app = Flask(__name__)
+
+# --- Reverse proxy / subpath support ---
+class PrefixMiddleware:
+    def __init__(self, app, prefix):
+        self.app = app
+        self.prefix = prefix.rstrip('/')
+
+    def __call__(self, environ, start_response):
+        if not self.prefix:
+            return self.app(environ, start_response)
+
+        # Respect SCRIPT_NAME set by a proxy (e.g. X-Forwarded-Prefix via ProxyFix).
+        if not environ.get('SCRIPT_NAME'):
+            environ['SCRIPT_NAME'] = self.prefix
+            path_info = environ.get('PATH_INFO', '')
+            if path_info.startswith(self.prefix):
+                new_path = path_info[len(self.prefix):]
+                environ['PATH_INFO'] = new_path if new_path else '/'
+
+        return self.app(environ, start_response)
+
+APP_PREFIX = os.environ.get('APP_PREFIX', '').rstrip('/')
+if APP_PREFIX and not APP_PREFIX.startswith('/'):
+    APP_PREFIX = f'/{APP_PREFIX}'
+
+app.wsgi_app = ProxyFix(app.wsgi_app, x_prefix=1)
+app.wsgi_app = PrefixMiddleware(app.wsgi_app, APP_PREFIX)
 
 # Percorsi file
 DATA_FOLDER = 'Data'
