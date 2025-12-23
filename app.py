@@ -31,14 +31,23 @@ class PrefixMiddleware:
                 new_path = path_info[len(self.prefix):]
                 environ['PATH_INFO'] = new_path if new_path else '/'
 
+
         return self.app(environ, start_response)
 
-APP_PREFIX = os.environ.get('APP_PREFIX', '').rstrip('/')
+APP_PREFIX = os.environ.get('APP_PREFIX', '/JCTNT').rstrip('/')
 if APP_PREFIX and not APP_PREFIX.startswith('/'):
     APP_PREFIX = f'/{APP_PREFIX}'
+if APP_PREFIX == '/':
+    APP_PREFIX = ''
 
-app.wsgi_app = ProxyFix(app.wsgi_app, x_prefix=1)
 app.wsgi_app = PrefixMiddleware(app.wsgi_app, APP_PREFIX)
+app.wsgi_app = ProxyFix(
+    app.wsgi_app,
+    x_for=1,
+    x_proto=1,
+    x_host=1,
+    x_prefix=1
+)
 
 # Percorsi file
 DATA_FOLDER = 'Data'
