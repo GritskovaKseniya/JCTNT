@@ -275,6 +275,12 @@ def _format_physical_field(physical_table, physical_field, is_outer, context):
     return f'{physical_table}.{physical_field}'
 
 
+def _format_unqualified_field(physical_field, is_outer, context):
+    if is_outer and context in {'WHERE', 'ON', 'HAVING'}:
+        return f'{physical_field}(+)'
+    return physical_field
+
+
 def translate_tecsql(normalized_query):
     # Parse the query, track clause context, and translate logical names.
     if not normalized_query:
@@ -490,7 +496,7 @@ def translate_tecsql(normalized_query):
             })
             output.append({
                 'type': 'IDENT',
-                'text': _format_physical_field(physical_table, physical_field, is_outer, context)
+                'text': _format_unqualified_field(physical_field, is_outer, context)
             })
             i += 1
             continue
