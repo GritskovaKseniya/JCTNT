@@ -1,5 +1,9 @@
 [
     {
+        "fisico": "GD_ARTBP",
+        "logico": "ArticoloPerBusinessPartner"
+    },
+    {
         "fisico": "GD_DORIG",
         "logico": "RigaDocumento"
     },
@@ -10,5 +14,9 @@
     {
         "fisico": "MD_ARTI",
         "logico": "Articolo"
+    },
+    {
+        "fisico": "SI_FARTBP_EJ",
+        "logico": "ArticoloBusinessPartnerEJ"
     }
 ]
