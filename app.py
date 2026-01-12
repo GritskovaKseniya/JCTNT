@@ -184,23 +184,25 @@ def api_connect():
         
         # Query indici
         query_indexes = """
-            SELECT table_name, index_name, uniqueness
-            FROM user_indexes
+            SELECT table_owner, table_name, index_name, uniqueness, owner AS index_owner
+            FROM all_indexes
         """
         cursor.execute(query_indexes)
         
         indexes = []
         for row in cursor:
             indexes.append({
-                'TABLE_NAME': row[0] or '',
-                'INDEX_NAME': row[1] or '',
-                'UNIQUENESS': row[2] or ''
+                'TABLE_OWNER': row[0] or '',
+                'TABLE_NAME': row[1] or '',
+                'INDEX_NAME': row[2] or '',
+                'UNIQUENESS': row[3] or '',
+                'INDEX_OWNER': row[4] or ''
             })
         
         # Query colonne indici
         query_index_cols = """
-            SELECT table_name, index_name, column_name, column_position
-            FROM user_ind_columns
+            SELECT table_owner, table_name, index_owner, index_name, column_name, column_position
+            FROM all_ind_columns
             ORDER BY index_name, column_position
         """
         cursor.execute(query_index_cols)
@@ -208,10 +210,12 @@ def api_connect():
         index_columns = []
         for row in cursor:
             index_columns.append({
-                'TABLE_NAME': row[0] or '',
-                'INDEX_NAME': row[1] or '',
-                'COLUMN_NAME': row[2] or '',
-                'COLUMN_POSITION': row[3] if row[3] is not None else ''
+                'TABLE_OWNER': row[0] or '',
+                'TABLE_NAME': row[1] or '',
+                'INDEX_OWNER': row[2] or '',
+                'INDEX_NAME': row[3] or '',
+                'COLUMN_NAME': row[4] or '',
+                'COLUMN_POSITION': row[5] if row[5] is not None else ''
             })
         
         cursor.close()

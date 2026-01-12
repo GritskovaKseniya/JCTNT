@@ -49,6 +49,97 @@ function normalizeTableName(value) {
     return (value || '').replace(/\s+/g, '').trim().toUpperCase();
 }
 
+function splitOwnerAndName(value) {
+    const normalized = normalizeTableName(value);
+    if (!normalized) return { owner: '', name: '' };
+
+    const lastDot = normalized.lastIndexOf('.');
+    if (lastDot === -1) {
+        return { owner: '', name: normalized };
+    }
+
+    return {
+        owner: normalized.slice(0, lastDot),
+        name: normalized.slice(lastDot + 1)
+    };
+}
+
+function matchesTableEntry(entry, tableValue) {
+    const tableParts = splitOwnerAndName(tableValue);
+    if (!tableParts.name) return false;
+
+    const entryName = normalizeTableName(entry.TABLE_NAME);
+    if (!entryName || entryName !== tableParts.name) return false;
+
+    const entryOwner = normalizeTableName(entry.TABLE_OWNER || '');
+    if (tableParts.owner && entryOwner) {
+        return entryOwner === tableParts.owner;
+    }
+
+    return true;
+}
+
+function getIndexKey(entry) {
+    const name = normalizeTableName(entry.INDEX_NAME);
+    const owner = normalizeTableName(entry.INDEX_OWNER || '');
+    return owner ? `${owner}.${name}` : name;
+}
+
+function pickIndexOwner(indexesForTable, columnsForTable) {
+    const ownerStats = new Map();
+
+    indexesForTable.forEach((row) => {
+        const owner = normalizeTableName(row.TABLE_OWNER || '');
+        if (!ownerStats.has(owner)) {
+            ownerStats.set(owner, { indexes: 0, columns: 0 });
+        }
+        ownerStats.get(owner).indexes += 1;
+    });
+
+    columnsForTable.forEach((row) => {
+        const owner = normalizeTableName(row.TABLE_OWNER || '');
+        if (!ownerStats.has(owner)) {
+            ownerStats.set(owner, { indexes: 0, columns: 0 });
+        }
+        ownerStats.get(owner).columns += 1;
+    });
+
+    if (ownerStats.size <= 1) {
+        return ownerStats.size === 1 ? Array.from(ownerStats.keys())[0] : '';
+    }
+
+    const ranked = Array.from(ownerStats.entries()).sort((a, b) => {
+        if (b[1].indexes !== a[1].indexes) return b[1].indexes - a[1].indexes;
+        if (b[1].columns !== a[1].columns) return b[1].columns - a[1].columns;
+        return a[0].localeCompare(b[0]);
+    });
+
+    return ranked[0][0];
+}
+
+function dedupeIndexes(list) {
+    const seen = new Set();
+    return list.filter((row) => {
+        const table = normalizeTableName(row.TABLE_NAME);
+        const key = `${table}|${getIndexKey(row)}|${row.UNIQUENESS || ''}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+}
+
+function dedupeIndexColumns(list) {
+    const seen = new Set();
+    return list.filter((row) => {
+        const table = normalizeTableName(row.TABLE_NAME);
+        const column = normalizeTableName(row.COLUMN_NAME);
+        const key = `${table}|${getIndexKey(row)}|${column}|${row.COLUMN_POSITION || ''}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+}
+
 
 // --- Card Toggle ---
 function toggleCard(cardId) {
@@ -348,9 +439,9 @@ function goBack() {
 btnBack.addEventListener('click', goBack);
 
 // --- Index Row Toggle ---
-function toggleIndexRow(indexName, rowElement) {
+function toggleIndexRow(indexKey, rowElement) {
     const isExpanded = rowElement.classList.contains('expanded');
-    const detailRowId = 'detail-' + indexName.replace(/[^a-zA-Z0-9]/g, '_');
+    const detailRowId = 'detail-' + indexKey.replace(/[^a-zA-Z0-9]/g, '_');
     const existingDetail = $(detailRowId);
     
     if (isExpanded) {
@@ -358,7 +449,7 @@ function toggleIndexRow(indexName, rowElement) {
         if (existingDetail) existingDetail.remove();
     } else {
         rowElement.classList.add('expanded');
-        const cols = currentIndexColumns.filter(c => c.INDEX_NAME === indexName);
+        const cols = currentIndexColumns.filter(c => getIndexKey(c) === indexKey);
         
         const detailRow = document.createElement('tr');
         detailRow.className = 'index-detail-row';
@@ -403,8 +494,9 @@ function renderIndexes(data) {
 
     data.forEach((row) => {
         const tr = document.createElement('tr');
+        const indexKey = getIndexKey(row);
         tr.className = 'index-row';
-        tr.dataset.indexName = row.INDEX_NAME;
+        tr.dataset.indexKey = indexKey;
         tr.innerHTML = `
             <td style="text-align:center; width:40px;">
                 <svg class="expand-icon" viewBox="0 0 24 24">
@@ -416,7 +508,7 @@ function renderIndexes(data) {
         `;
         tr.querySelector('td:first-child').addEventListener('click', (e) => {
             e.stopPropagation();
-            toggleIndexRow(row.INDEX_NAME, tr);
+            toggleIndexRow(indexKey, tr);
         });
         tr.querySelectorAll('td:not(:first-child)').forEach(td => {
             td.addEventListener('click', () => copyCell(td));
@@ -727,8 +819,18 @@ btnTranslate.addEventListener('click', async () => {
 
     renderResults(results);
 
-    currentIndexes = indexes.filter(i => i.TABLE_NAME === currentTablePhysical);
-    currentIndexColumns = indexColumns.filter(c => c.TABLE_NAME === currentTablePhysical);
+    const tableIndexes = indexes.filter(i => matchesTableEntry(i, currentTablePhysical));
+    const tableIndexColumns = indexColumns.filter(c => matchesTableEntry(c, currentTablePhysical));
+    const preferredOwner = pickIndexOwner(tableIndexes, tableIndexColumns);
+    const ownerFilteredIndexes = preferredOwner
+        ? tableIndexes.filter(i => normalizeTableName(i.TABLE_OWNER || '') === preferredOwner)
+        : tableIndexes;
+    const ownerFilteredColumns = preferredOwner
+        ? tableIndexColumns.filter(c => normalizeTableName(c.TABLE_OWNER || '') === preferredOwner)
+        : tableIndexColumns;
+
+    currentIndexes = dedupeIndexes(ownerFilteredIndexes);
+    currentIndexColumns = dedupeIndexColumns(ownerFilteredColumns);
     renderIndexes(currentIndexes);
 
     setResultsEnabled(true);
@@ -767,7 +869,7 @@ btnCopyIndexes.addEventListener('click', () => {
     
     currentIndexes.forEach(idx => {
         text += `INDICE: ${idx.INDEX_NAME} (${idx.UNIQUENESS})\n`;
-        const cols = currentIndexColumns.filter(c => c.INDEX_NAME === idx.INDEX_NAME);
+        const cols = currentIndexColumns.filter(c => getIndexKey(c) === getIndexKey(idx));
         if (cols.length > 0) {
             text += 'COLONNE:\n';
             cols.forEach(c => {
