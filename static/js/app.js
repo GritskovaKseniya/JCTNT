@@ -344,7 +344,7 @@ if (btnTranslateQuery) {
         try {
             // Send query to backend (auto-detects direction based on $ presence)
             const stripParams = document.getElementById('toggle-strip-params')?.checked ?? false;
-            const res = await fetch('/api/translate-query', {
+            const res = await fetch(`${BASE}/api/translate-query`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ query: rawQuery, strip_params: stripParams })
@@ -1059,7 +1059,7 @@ async function handleDescriptorSelection(descriptor) {
     setTranslateLoading(true);
 
     try {
-        const res = await fetch('/api/translate-query', {
+        const res = await fetch(`${BASE}/api/translate-query`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ query: rawQuery, chosen_descriptor: descriptor, strip_params: document.getElementById('toggle-strip-params')?.checked ?? false })
