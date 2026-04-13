@@ -188,6 +188,12 @@ function initTabs() {
                 tab.classList.add('active');
                 const activeContent = $(tab.dataset.tab);
                 if (activeContent) activeContent.classList.add('active');
+
+                // Persist active main tab so auto-reconnect can restore it
+                const mainTabs = ['tab-ricerca', 'tab-translator'];
+                if (mainTabs.includes(tab.dataset.tab)) {
+                    saveSession(tab.dataset.tab);
+                }
             });
         });
     });
@@ -330,25 +336,47 @@ if (btnTranslateQuery) {
         if (!rawQuery) return;
 
         clearTranslateStatus();
+        hideDescriptorChoice();
+        hidePartialWarning();
         setTranslateLoading(true);
         if (outputSql) outputSql.value = '';
 
         try {
-            // Send TecSql to the backend for normalization and parsing.
+            // Send query to backend (auto-detects direction based on $ presence)
+            const stripParams = document.getElementById('toggle-strip-params')?.checked ?? false;
             const res = await fetch('/api/translate-query', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query: rawQuery })
+                body: JSON.stringify({ query: rawQuery, strip_params: stripParams })
             });
             const data = await res.json();
+
+            // Handle descriptor disambiguation
+            if (data.ambiguous) {
+                setTranslateStatus('info', 'Multiple descriptors available. Choose one.');
+                showDescriptorChoice(data.table, data.candidates, data.fields_used);
+                setTranslateLoading(false);
+                return;
+            }
 
             if (!res.ok || data.error) {
                 // Inline error message (no alerts).
                 setTranslateStatus('error', data.error || 'Errore di traduzione');
             } else {
-                // Populate translated SQL output.
-                if (outputSql) outputSql.value = data.sql || '';
-                setTranslateStatus('success', 'Traduzione completata');
+                // Handle bidirectional output
+                if (data.direction === 'tecsql_to_sql') {
+                    if (outputSql) outputSql.value = data.sql || '';
+                    setTranslateStatus('success', 'TecSQL → SQL completed');
+                } else if (data.direction === 'sql_to_tecsql') {
+                    if (outputSql) outputSql.value = data.tecsql || '';
+
+                    // Show partial translation warning
+                    if (data.partial_translation) {
+                        showPartialTranslationWarning(data.untranslated_fields);
+                    }
+
+                    setTranslateStatus('success', 'SQL → TecSQL completed');
+                }
             }
         } catch (e) {
             setTranslateStatus('error', 'Errore di comunicazione con il server');
@@ -356,6 +384,21 @@ if (btnTranslateQuery) {
 
         setTranslateLoading(false);
         updateTranslateButtonState();
+    });
+}
+
+// --- Event: Swap Button ---
+const btnSwap = $('btn-swap');
+if (btnSwap) {
+    btnSwap.addEventListener('click', () => {
+        const tempValue = inputTecsql.value;
+        inputTecsql.value = outputSql.value;
+        outputSql.value = tempValue;
+
+        updateTranslateButtonState();
+        clearTranslateStatus();
+        hideDescriptorChoice();
+        hidePartialWarning();
     });
 }
 
@@ -398,6 +441,7 @@ btnConnect.addEventListener('click', async () => {
                 loadSearchHistory();
                 setResultsEnabled(false);
                 searchCard.classList.add('expanded');
+                saveSession('tab-ricerca');
             }, 800);
         } else {
             connStatus.className = 'status-box error';
@@ -423,6 +467,7 @@ btnNext.addEventListener('click', () => {
 
 // --- Event: Back ---
 function goBack() {
+    clearSession();
     pageTranslate.classList.remove('active');
     pageConnection.classList.add('active');
     searchCard.classList.add('expanded');
@@ -718,10 +763,100 @@ function showKseniiaEasterEgg() {
     launchSnowfall();
 }
 
+// --- Helper: Hide Suggestions ---
+function hideSuggestions() {
+    const suggestionsContainer = $('suggestions-container');
+    if (suggestionsContainer) {
+        suggestionsContainer.style.display = 'none';
+    }
+}
+
+// --- Helper: Show Suggestions ---
+function showSuggestions(suggestions, searchInput) {
+    const suggestionsContainer = $('suggestions-container');
+    const suggestionsList = $('suggestions-list');
+    const suggestionsTitle = $('suggestions-title');
+
+    if (!suggestionsContainer || !suggestionsList) return;
+
+    // Clear previous suggestions
+    suggestionsList.innerHTML = '';
+
+    if (!suggestions || suggestions.length === 0) {
+        suggestionsContainer.style.display = 'none';
+        return;
+    }
+
+    // Update title
+    suggestionsTitle.textContent = `Non ho trovato un risultato esatto per "${searchInput}", prova con:`;
+
+    // Render suggestions
+    suggestions.forEach((suggestion) => {
+        const item = document.createElement('div');
+        item.className = 'suggestion-item';
+        item.dataset.fisico = suggestion.fisico;
+        item.dataset.logico = suggestion.logico;
+
+        // Highlight matching parts
+        const fisicoHighlighted = highlightMatch(suggestion.fisico, searchInput);
+        const logicoHighlighted = highlightMatch(suggestion.logico, searchInput);
+
+        // Badge based on match type
+        let badgeClass = suggestion.type;
+        let badgeText = suggestion.type.replace('_', ' ');
+
+        item.innerHTML = `
+            <div class="suggestion-content">
+                <div class="suggestion-table-name">
+                    ${fisicoHighlighted} → ${logicoHighlighted}
+                </div>
+                <div class="suggestion-meta">
+                    <span class="suggestion-badge ${badgeClass}">${badgeText}</span>
+                    <span class="suggestion-fields-count">${suggestion.fieldsCount} campi</span>
+                    ${suggestion.similarity ? `<span class="suggestion-score">${Math.round(suggestion.similarity * 100)}% match</span>` : ''}
+                </div>
+            </div>
+        `;
+
+        // Click handler
+        item.addEventListener('click', () => {
+            // Set input and trigger search
+            $('input-table').value = suggestion.fisico;
+            hideSuggestions();
+            btnTranslate.click();
+        });
+
+        // Hover effect
+        item.addEventListener('mouseenter', () => {
+            item.classList.add('selected');
+        });
+        item.addEventListener('mouseleave', () => {
+            item.classList.remove('selected');
+        });
+
+        suggestionsList.appendChild(item);
+    });
+
+    // Show container
+    suggestionsContainer.style.display = 'block';
+
+    // Scroll into view
+    suggestionsContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// --- Event: Close Suggestions ---
+const btnCloseSuggestions = $('btn-close-suggestions');
+if (btnCloseSuggestions) {
+    btnCloseSuggestions.addEventListener('click', hideSuggestions);
+}
+
 // --- Event: Translate ---
 btnTranslate.addEventListener('click', async () => {
     const tableInput = normalizeTableName($('input-table').value);
     const fieldsInput = $('input-fields').value.trim();
+
+    // Hide suggestions from previous search
+    hideSuggestions();
 
     if (!tableInput) {
         alert('Inserisci il nome della tabella');
@@ -738,41 +873,26 @@ btnTranslate.addEventListener('click', async () => {
         return;
     }
 
-    let tableRows = dictionary.filter(r =>
-        normalizeTableName(r.TABELLA_FISICA) === tableInput ||
-        normalizeTableName(r.TABELLA_LOGICA) === tableInput
-    );
+    // FUZZY SEARCH: Find best matches
+    const { exact, suggestions } = findBestTableMatches(dictionary, tableInput, 10, 50);
 
-    if (tableRows.length === 0) {
-        const likeMatches = dictionary.filter(r =>
-            normalizeTableName(r.TABELLA_FISICA).includes(tableInput) ||
-            normalizeTableName(r.TABELLA_LOGICA).includes(tableInput)
-        );
+    let tableRows = [];
 
-        if (likeMatches.length === 0) {
-            alert('Tabella non trovata nel dizionario');
-            return;
-        }
-
-        const tableNames = new Map();
-        likeMatches.forEach(r => {
-            if (!tableNames.has(r.TABELLA_FISICA)) {
-                tableNames.set(r.TABELLA_FISICA, r.TABELLA_LOGICA);
-            }
-        });
-
-        if (tableNames.size > 1) {
-            const list = Array.from(tableNames.entries())
-                .slice(0, 10)
-                .map(([fisico, logico]) => `${fisico} - ${logico}`)
-                .join(', ');
-            const suffix = tableNames.size > 10 ? '...' : '';
-            alert(`Trovate piu tabelle, specifica meglio: ${list}${suffix}`);
-            return;
-        }
-
-        const matchPhysical = tableNames.keys().next().value;
-        tableRows = dictionary.filter(r => r.TABELLA_FISICA === matchPhysical);
+    // Case 1: Exact match found
+    if (exact.length > 0) {
+        const firstExact = exact[0];
+        tableRows = dictionary.filter(r => r.TABELLA_FISICA === firstExact.fisico);
+    }
+    // Case 2: No exact match, but suggestions exist
+    else if (suggestions.length > 0) {
+        // Show suggestions UI
+        showSuggestions(suggestions, tableInput);
+        return; // Stop here, user will click on suggestion
+    }
+    // Case 3: No matches at all
+    else {
+        alert(`Tabella "${tableInput}" non trovata nel dizionario.\n\nProva con:\n- Un nome parziale (es. "ARTI" invece di "MD_ARTI")\n- Il nome logico (es. "Articolo")\n- Verifica l'ortografia`);
+        return;
     }
 
     currentTablePhysical = tableRows[0].TABELLA_FISICA;
@@ -886,9 +1006,193 @@ btnCopyIndexes.addEventListener('click', () => {
     });
 });
 
+// --- Descriptor Choice UI ---
+function showDescriptorChoice(table, candidates, fieldsUsed) {
+    let container = $('descriptor-choice-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'descriptor-choice-container';
+        container.className = 'descriptor-choice-container';
+        const statusBox = $('translate-status');
+        statusBox.parentNode.insertBefore(container, statusBox.nextSibling);
+    }
+
+    container.innerHTML = `
+        <div class="descriptor-choice-header">
+            <svg class="icon"><use href="#icon-database"/></svg>
+            <span>Multiple descriptors for <strong>${table}</strong>. Choose one:</span>
+            <button class="descriptor-choice-close" onclick="hideDescriptorChoice()">×</button>
+        </div>
+        <div class="descriptor-choice-info">
+            Fields used: <code>${fieldsUsed.join(', ')}</code>
+        </div>
+        <div class="descriptor-choice-list">
+            ${candidates.map(desc => `
+                <div class="descriptor-choice-item">
+                    <div class="descriptor-name">${desc}</div>
+                    <button class="btn btn-primary btn-select-descriptor" data-descriptor="${desc}">
+                        Select
+                    </button>
+                </div>
+            `).join('')}
+        </div>
+    `;
+
+    container.style.display = 'block';
+    container.querySelectorAll('.btn-select-descriptor').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            handleDescriptorSelection(e.target.dataset.descriptor);
+        });
+    });
+}
+
+function hideDescriptorChoice() {
+    const container = $('descriptor-choice-container');
+    if (container) container.style.display = 'none';
+}
+
+async function handleDescriptorSelection(descriptor) {
+    const rawQuery = inputTecsql ? inputTecsql.value.trim() : '';
+    if (!rawQuery) return;
+
+    hideDescriptorChoice();
+    setTranslateLoading(true);
+
+    try {
+        const res = await fetch('/api/translate-query', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: rawQuery, chosen_descriptor: descriptor, strip_params: document.getElementById('toggle-strip-params')?.checked ?? false })
+        });
+        const data = await res.json();
+
+        if (data.direction === 'sql_to_tecsql' && outputSql) {
+            outputSql.value = data.tecsql || '';
+
+            // Show partial translation warning
+            if (data.partial_translation) {
+                showPartialTranslationWarning(data.untranslated_fields);
+            }
+
+            setTranslateStatus('success', `Completed using ${descriptor}`);
+        }
+    } catch (e) {
+        setTranslateStatus('error', 'Server error');
+    }
+
+    setTranslateLoading(false);
+}
+
+// --- Partial Translation Warning ---
+function showPartialTranslationWarning(untranslatedFields) {
+    let container = $('partial-warning-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'partial-warning-container';
+        container.className = 'partial-warning-container';
+
+        const translateStatus = $('translate-status');
+        if (translateStatus) {
+            translateStatus.parentNode.insertBefore(container, translateStatus.nextSibling);
+        }
+    }
+
+    container.innerHTML = `
+        <div class="partial-warning-header">
+            <svg class="icon"><use href="#icon-alert"/></svg>
+            <span>Attenzione: campi non tradotti</span>
+            <button class="partial-warning-close" onclick="hidePartialWarning()">×</button>
+        </div>
+        <div class="partial-warning-content">
+            <p>I seguenti campi non sono stati trovati nel dizionario e rimangono in formato fisico:</p>
+            <ul>
+                ${untranslatedFields.map(f => `<li><code class="field-not-found">${f}</code></li>`).join('')}
+            </ul>
+            <p>Verificare l'ortografia o cercare la tabella nella scheda Ricerca.</p>
+        </div>
+    `;
+
+    container.style.display = 'block';
+}
+
+function hidePartialWarning() {
+    const container = $('partial-warning-container');
+    if (container) container.style.display = 'none';
+}
+
+// --- Session Persistence (survives F5) ---
+const SESSION_KEY = 'jctnt_session';
+
+function saveSession(activeTab) {
+    localStorage.setItem(SESSION_KEY, JSON.stringify({
+        connected: true,
+        activeTab: activeTab || 'tab-ricerca'
+    }));
+}
+
+function clearSession() {
+    localStorage.removeItem(SESSION_KEY);
+}
+
+async function tryAutoReconnect() {
+    let session;
+    try {
+        const raw = localStorage.getItem(SESSION_KEY);
+        if (!raw) return false;
+        session = JSON.parse(raw);
+        if (!session?.connected) return false;
+    } catch {
+        clearSession();
+        return false;
+    }
+
+    connStatus.className = 'status-box info';
+    connStatus.textContent = 'Ripristino sessione...';
+
+    try {
+        const credRes = await fetch(`${BASE}/api/connection-data`);
+        const creds = await credRes.json();
+        if (!creds.host) { clearSession(); return false; }
+
+        const res = await fetch(`${BASE}/api/connect`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(creds)
+        });
+        const result = await res.json();
+
+        if (result.success) {
+            dictionary = result.data;
+            indexes = result.indexes || [];
+            indexColumns = result.index_columns || [];
+
+            pageConnection.classList.remove('active');
+            pageTranslate.classList.add('active');
+            loadSearchHistory();
+            setResultsEnabled(false);
+            searchCard.classList.add('expanded');
+
+            // Restore the tab the user was on before F5
+            if (session.activeTab) {
+                const tabEl = document.querySelector(`[data-tab="${session.activeTab}"]`);
+                if (tabEl) tabEl.click();
+            }
+
+            return true;
+        }
+    } catch (e) { /* network error — fall through */ }
+
+    clearSession();
+    connStatus.className = 'status-box info';
+    connStatus.textContent = 'In attesa di connessione...';
+    return false;
+}
+
 // --- Init ---
 initTabs();
 clearTranslateStatus();
 updateTranslateButtonState();
-loadConnectionData();
 loadConnectionHistory();
+tryAutoReconnect().then(reconnected => {
+    if (!reconnected) loadConnectionData();
+});

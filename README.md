@@ -61,16 +61,27 @@ Il driver `oracledb` viene utilizzato in **thick mode** per compatibilità con v
 
 ## Avvio
 
+### Metodo 1: Script di Avvio (Consigliato)
+
+**Windows**:
+```bash
+start_server.bat
+```
+
+**Linux/Mac**:
+```bash
+./start_server.sh
+```
+
+### Metodo 2: Manuale
+
 ```bash
 cd JCTNT
 python app.py
 ```
 
-Output atteso:
-```
- * Running on http://127.0.0.1:5000
- * Debug mode: on
-```
+**Nota**: Il server usa `waitress` (production-ready) e **non stampa output** quando parte.
+Se non vedi errori, il server è attivo.
 
 Apri il browser su: **http://localhost:5000**
 

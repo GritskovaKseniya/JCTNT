@@ -6,6 +6,22 @@ Guida rapida per avviare il progetto in 5 minuti.
 
 ## ⚡ Avvio Rapido
 
+### Metodo 1: Script di Avvio (Consigliato)
+
+**Windows**:
+```bash
+# Doppio click su start_server.bat
+# oppure da terminale:
+start_server.bat
+```
+
+**Linux/Mac**:
+```bash
+./start_server.sh
+```
+
+### Metodo 2: Manuale
+
 ```bash
 # 1. Posizionati nella cartella del progetto
 cd e:\Sviluppo\Development\JCTNT
@@ -19,6 +35,9 @@ python app.py
 # 4. Apri il browser
 # http://localhost:5000
 ```
+
+**Nota**: Con `waitress` il server **non stampa output** quando parte.
+Se vedi il prompt senza errori, il server è attivo su http://localhost:5000
 
 ---
 

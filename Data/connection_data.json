@@ -1,7 +1,7 @@
 {
     "host": "oracle-ud-42",
-    "port": "1521",
-    "sid": "ORCL",
-    "username": "template280_db",
-    "password": "template280_db"
+    "port": "1519",
+    "sid": "ORCL193",
+    "username": "boart280fw",
+    "password": "boart280fw"
 }

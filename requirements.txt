@@ -1,2 +1,4 @@
 Flask==3.0.0
 oracledb==2.0.0
+waitress==3.0.0
+sqlparse==0.5.0

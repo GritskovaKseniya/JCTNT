@@ -168,29 +168,44 @@
                                 Nuova Connessione
                             </button>
                         </div>
+
+                        <!-- Suggestions Container -->
+                        <div id="suggestions-container" class="suggestions-container" style="display: none;">
+                            <div class="suggestions-header">
+                                <svg class="icon"><use href="#icon-search"/></svg>
+                                <span id="suggestions-title">Non ho trovato un risultato esatto, prova con:</span>
+                                <button class="suggestions-close" id="btn-close-suggestions" title="Chiudi suggerimenti">×</button>
+                            </div>
+                            <div class="suggestions-list" id="suggestions-list"></div>
+                        </div>
                     </div>
 
                     <div id="tab-translator" class="tab-content">
                         <div class="translator-grid" id="translator-grid">
                             <div class="form-group translator-panel">
-                                <label for="input-tecsql">TecSql</label>
-                                <textarea id="input-tecsql" rows="8" placeholder="Inserisci TecSql qui..."   id="tecsql" 
+                                <label for="input-tecsql">Input (TecSQL or SQL - auto-detect)</label>
+                                <textarea id="input-tecsql" rows="8" placeholder="Enter TecSQL (with $) or SQL (without $)..."   id="tecsql"
                                 spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"></textarea>
                             </div>
                             <div class="translator-swap">
-                                <button class="btn btn-secondary btn-swap" id="btn-swap" type="button" title="Swap direction">
+                                <button class="btn btn-secondary btn-swap" id="btn-swap" type="button" title="Swap input and output">
                                     <svg class="icon"><use href="#icon-swap"/></svg>
                                 </button>
                             </div>
                             <div class="form-group translator-panel">
-                                <label for="output-sql">SQL</label>
-                                <textarea id="output-sql" rows="8" readonly placeholder="Output SQL..."></textarea>
+                                <label for="output-sql">Output (auto-translated)</label>
+                                <textarea id="output-sql" rows="8" readonly placeholder="Translation output..."></textarea>
                             </div>
                         </div>
 
                         <div id="translate-status" class="status-box info hidden"></div>
 
                         <div class="buttons-row translator-actions">
+                            <label class="toggle-label" title="Removes WHERE/HAVING conditions that use parameters (?param, #?param, etc.)">
+                                <input type="checkbox" id="toggle-strip-params" class="toggle-checkbox">
+                                <span class="toggle-track"></span>
+                                <span class="toggle-text">Strip parameters</span>
+                            </label>
                             <button class="btn btn-primary" id="btn-translate-query">
                                 <svg class="icon icon-white"><use href="#icon-arrow-right"/></svg>
                                 Translate
@@ -281,6 +296,7 @@
         </div>
     </div>
 
+    <script src="{{ url_for('static', filename='js/fuzzy-search.js') }}"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 </html>

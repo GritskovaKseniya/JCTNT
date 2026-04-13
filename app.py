@@ -3,14 +3,23 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 import oracledb
 import json
 import os
-from tecsql_translator import normalize_query_text, translate_tecsql, update_mappings
+from tecsql_translator import normalize_query_text, translate_tecsql, translate_sql_to_tecsql, update_mappings
 from waitress import serve
 
 # Abilita thick mode per versioni Oracle più vecchie
 try:
-    oracledb.init_oracle_client(lib_dir=r"C:\oracle\19c\x64\client\bin")
-except:
-    pass
+    # Prova prima il path Oracle 11 (più comune)
+    oracledb.init_oracle_client(lib_dir=r"C:\App\Oracle11\clix64\client\bin")
+    print("[OK] Thick mode attivo (Oracle 11 x64)")
+except Exception as e:
+    # Fallback: cerca automaticamente nel PATH
+    try:
+        oracledb.init_oracle_client()
+        print("[OK] Thick mode attivo (auto-detected)")
+    except:
+        print("[WARNING] Thin mode attivo (Oracle Client non trovato)")
+        print("          Per Oracle 11 o piu vecchi, installa Oracle Instant Client")
+        pass
 
 app = Flask(__name__)
 
@@ -57,6 +66,18 @@ CONNECTION_HISTORY_FILE = os.path.join(DATA_FOLDER, 'connection_history.json')
 SEARCH_HISTORY_FILE = os.path.join(DATA_FOLDER, 'search_history.json')
 
 os.makedirs(DATA_FOLDER, exist_ok=True)
+
+# Connection pool (globale, riutilizzabile)
+connection_pool = None
+
+# Cache dizionario (evita reload continuo)
+dictionary_cache = {
+    'data': None,
+    'indexes': None,
+    'index_columns': None,
+    'timestamp': None,
+    'connection_key': None
+}
 
 # --- Utility JSON ---
 def read_json(filepath, default):
@@ -129,30 +150,98 @@ def api_add_search_history():
 
 @app.route('/api/translate-query', methods=['POST'])
 def api_translate_query():
-    # Translate TecSql to SQL using the legacy parser.
+    """Bidirectional translation: TecSQL ↔ SQL (auto-detect direction)"""
     data = request.get_json(silent=True) or {}
-    normalized = normalize_query_text(data.get('query', ''))
+    query = data.get('query', '')
+    chosen_descriptor = data.get('chosen_descriptor')
+    strip_params = bool(data.get('strip_params', False))
+
+    normalized = normalize_query_text(query)
     if not normalized:
-        return jsonify({'error': 'Query TecSql vuota'}), 400
+        return jsonify({'error': 'Query vuota'}), 400
+
+    # Auto-detect direction (TecSQL has $, SQL doesn't)
+    is_tecsql = '$' in normalized
 
     try:
-        sql = translate_tecsql(normalized)
-        return jsonify({'normalized_query': normalized, 'sql': sql})
+        if is_tecsql:
+            # TecSQL → SQL
+            sql = translate_tecsql(normalized, strip_params=strip_params)
+            return jsonify({
+                'direction': 'tecsql_to_sql',
+                'normalized_query': normalized,
+                'sql': sql
+            })
+        else:
+            # SQL → TecSQL
+            result = translate_sql_to_tecsql(normalized, chosen_descriptor)
+
+            if result.get('ambiguous'):
+                return jsonify({
+                    'direction': 'sql_to_tecsql',
+                    'ambiguous': True,
+                    'table': result['table'],
+                    'candidates': result['candidates'],
+                    'fields_used': result['fields_used']
+                }), 200
+
+            if not result['success']:
+                return jsonify({'error': result['error']}), 400
+
+            return jsonify({
+                'direction': 'sql_to_tecsql',
+                'normalized_query': normalized,
+                'tecsql': result['tecsql'],
+                'descriptors_used': result.get('descriptors_used', {}),
+                'partial_translation': result.get('partial_translation', False),
+                'untranslated_fields': result.get('untranslated_fields', [])
+            })
+
     except Exception as exc:
         return jsonify({'error': str(exc)}), 400
 
 @app.route('/api/connect', methods=['POST'])
 def api_connect():
+    global connection_pool, dictionary_cache
+
     data = request.json
     host = data.get('host', '')
     port = data.get('port', '1521')
     sid = data.get('sid', '')
     username = data.get('username', '')
     password = data.get('password', '')
-    
+
+    # Chiave univoca per cache
+    connection_key = f"{host}:{port}:{sid}:{username}"
+
+    # Check cache (riutilizza dati se connessione uguale)
+    if (dictionary_cache['data'] is not None and
+        dictionary_cache['connection_key'] == connection_key):
+        print("[INFO] Utilizzo cache dizionario (no query)")
+        return jsonify({
+            'success': True,
+            'message': f'Connessione riuscita (cached). {len(dictionary_cache["data"])} campi.',
+            'data': dictionary_cache['data'],
+            'indexes': dictionary_cache['indexes'],
+            'index_columns': dictionary_cache['index_columns']
+        })
+
+    conn = None
+    cursor = None
+
     try:
         dsn = oracledb.makedsn(host, port, sid=sid)
-        conn = oracledb.connect(user=username, password=password, dsn=dsn)
+
+        print(f"[INFO] Connessione a {host}:{port}/{sid}...")
+
+        # Connessione diretta (pool temporaneamente disabilitato)
+        conn = oracledb.connect(
+            user=username,
+            password=password,
+            dsn=dsn
+        )
+        print("[OK] Connessione stabilita")
+
         cursor = conn.cursor()
         
         # Query dizionario campi
@@ -218,9 +307,24 @@ def api_connect():
                 'COLUMN_POSITION': row[5] if row[5] is not None else ''
             })
         
-        cursor.close()
-        conn.close()
-        
+        # Salva in cache
+        dictionary_cache['data'] = rows
+        dictionary_cache['indexes'] = indexes
+        dictionary_cache['index_columns'] = index_columns
+        dictionary_cache['connection_key'] = connection_key
+        from datetime import datetime
+        dictionary_cache['timestamp'] = datetime.now()
+
+        print(f"[INFO] Caricati {len(rows)} campi, {len(indexes)} indici")
+        print(f"[INFO] Dizionario salvato in cache")
+
+        # Chiudi connessione
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+            print("[INFO] Connessione chiusa")
+
         # Salva connessione corrente e nella history
         conn_data = {'host': host, 'port': port, 'sid': sid, 'username': username, 'password': password}
         write_json(CONNECTION_FILE, conn_data)
@@ -228,7 +332,7 @@ def api_connect():
 
         # Aggiorna mapping TecSql per il traduttore
         update_mappings(rows)
-        
+
         return jsonify({
             'success': True,
             'message': f'Connessione riuscita. Caricati {len(rows)} campi e {len(indexes)} indici.',
@@ -239,9 +343,40 @@ def api_connect():
         
     except oracledb.DatabaseError as e:
         error, = e.args
+        # Chiudi connessione anche in caso di errore
+        if cursor:
+            try:
+                cursor.close()
+            except:
+                pass
+        if conn:
+            try:
+                conn.close()
+            except:
+                pass
         return jsonify({'success': False, 'message': f'Errore database: {error.message}'})
     except Exception as e:
+        # Chiudi connessione anche in caso di errore
+        if cursor:
+            try:
+                cursor.close()
+            except:
+                pass
+        if conn:
+            try:
+                conn.close()
+            except:
+                pass
         return jsonify({'success': False, 'message': f'Errore: {str(e)}'})
 
 if __name__ == '__main__':
+    print('=' * 60)
+    print(' JCTNT Server Starting...')
+    print('=' * 60)
+    print(' URL: http://localhost:5000')
+    print(' URL: http://127.0.0.1:5000')
+    print(' Network: http://0.0.0.0:5000')
+    print('=' * 60)
+    print(' Server is ready! Press CTRL+C to stop.')
+    print('=' * 60)
     serve(app, host="0.0.0.0", port=5000)
