@@ -1,0 +1,14 @@
+# 1. Prendi le modifiche
+git pull origin main
+
+# 2. Se requirements.txt è cambiato (controlla con git diff)
+pip install -r requirements.txt
+
+# 3. Ferma il processo Waitress corrente
+#    (task manager, o se hai un PID salvato, o Ctrl+C se è in foreground)
+
+# 4. Riavvia
+start_server.bat
+
+
+--------------------------------------------
