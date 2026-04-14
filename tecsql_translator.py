@@ -204,6 +204,25 @@ def _extract_tables_and_aliases(stmt):
     return {'tables': tables, 'alias_map': alias_map}
 
 
+def _is_comparison_value(sql, identifier):
+    """
+    Return True if `identifier` appears as a VALUE (right-hand side) of a
+    comparison operator in `sql`, meaning it is a constant / JAS parameter,
+    NOT a field name.
+
+    Examples that return True:
+        bolla_ck = BOLLA_PASSATA_AL_JAS
+        ncode_ck != UMV_PASSATA_AL_SERVIZIO
+        status <> ACTIVE_FLAG
+
+    Examples that return False (identifier is a field, left-hand side):
+        LIRIG_CATLIT = 'LL'
+        LIRIG_CATLIT > 0
+    """
+    pattern = r'(?:[=!<>]{1,2})\s*\b' + re.escape(identifier) + r'\b'
+    return bool(re.search(pattern, sql, re.IGNORECASE))
+
+
 def _extract_fields_from_sql(sql_query):
     """
     Extract tables, aliases and fields from SQL query.
@@ -284,7 +303,7 @@ def _extract_fields_from_sql(sql_query):
     already_unqualified = {u.lower() for u in unqualified}
     known_prefixes = set(prefix_to_table.keys())
 
-    for m in re.finditer(r'(?<!\.)\b([a-z][a-z0-9_]+)\b', clean_sql):
+    for m in re.finditer(r'(?<![.$])\b([A-Za-z][A-Za-z0-9_]+)\b', clean_sql):
         ident = m.group(1)
         ident_lower = ident.lower()
         if (ident_lower not in _SQL_NON_FIELD_WORDS
@@ -823,7 +842,8 @@ def translate_sql_to_tecsql(sql_query, chosen_descriptor=None):
                         replacement = f'{descriptor_display}.{logical_field_display}'
                         tecsql = re.sub(pattern, replacement, tecsql, flags=re.IGNORECASE)
                     else:
-                        untranslated_fields.append(unqualified_field)
+                        if not _is_comparison_value(tecsql, unqualified_field):
+                            untranslated_fields.append(unqualified_field)
         else:
             # Multiple tables: try to find field in any table's descriptor
             for unqualified_field in unqualified_fields:
@@ -846,7 +866,8 @@ def translate_sql_to_tecsql(sql_query, chosen_descriptor=None):
                         break
 
                 if not found:
-                    untranslated_fields.append(unqualified_field)
+                    if not _is_comparison_value(tecsql, unqualified_field):
+                        untranslated_fields.append(unqualified_field)
 
     return {
         'success': True,

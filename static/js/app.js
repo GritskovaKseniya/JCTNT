@@ -327,6 +327,17 @@ if (inputTecsql) {
         clearTranslateStatus();
         updateTranslateButtonState();
     });
+
+    // Enter on empty left textarea → clear right textarea too
+    inputTecsql.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && inputTecsql.value.trim() === '') {
+            e.preventDefault();
+            if (outputSql) outputSql.value = '';
+            clearTranslateStatus();
+            hideDescriptorChoice();
+            hidePartialWarning();
+        }
+    });
 }
 
 // --- Event: Translate Query ---
