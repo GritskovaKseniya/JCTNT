@@ -12,3 +12,7 @@ start_server.bat
 
 
 --------------------------------------------
+git pull origin main
+pip install -r requirements.txt   ← solo se requirements.txt è cambiato
+stop_server.bat
+start_server.bat
