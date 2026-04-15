@@ -212,6 +212,121 @@
                                 Translate
                             </button>
                         </div>
+
+                        <!-- TecSQL Quick Reference -->
+                        <div class="tecsql-reference" id="tecsql-reference">
+                            <div class="tecsql-reference-header" onclick="toggleTecSQLReference()">
+                                <span>Funzioni TecSQL disponibili</span>
+                                <svg class="icon ref-chevron"><use href="#icon-chevron"/></svg>
+                            </div>
+                            <div class="tecsql-reference-body">
+                                <div class="ref-grid">
+                                    <div class="ref-category">
+                                        <div class="ref-cat-title">Stringa</div>
+                                        <div class="ref-tags">
+                                            <span class="ref-tag" title="TRIM(p1 [,p2]) — elimina blank in testa e coda">TRIM</span>
+                                            <span class="ref-tag" title="RTRIM(p1 [,p2]) — elimina blank in coda">RTRIM</span>
+                                            <span class="ref-tag" title="LTRIM(p1 [,p2]) — elimina blank in testa">LTRIM</span>
+                                            <span class="ref-tag" title="UPPER(p1) — converte in maiuscolo">UPPER</span>
+                                            <span class="ref-tag" title="LOWER(p1) — converte in minuscolo">LOWER</span>
+                                            <span class="ref-tag" title="SUBSTR(p1, p2, p3) — sottostringa da posizione p2, lunghezza p3">SUBSTR</span>
+                                            <span class="ref-tag" title="LENGTH(p1) — lunghezza stringa">LENGTH</span>
+                                            <span class="ref-tag" title="LPAD(p1, p2 [,p3]) — riempie testa stringa fino a lunghezza p2">LPAD</span>
+                                            <span class="ref-tag" title="RPAD(p1, p2 [,p3]) — riempie coda stringa fino a lunghezza p2">RPAD</span>
+                                            <span class="ref-tag" title="REPLACE(p1, p2, p3) — sostituisce p2 con p3 in p1">REPLACE</span>
+                                        </div>
+                                    </div>
+                                    <div class="ref-category">
+                                        <div class="ref-cat-title">Data / Ora</div>
+                                        <div class="ref-tags">
+                                            <span class="ref-tag" title="TODAY() — data/ora corrente">TODAY</span>
+                                            <span class="ref-tag" title="DATE(p1) — converte stringa GG/MM/AAAA in data">DATE</span>
+                                            <span class="ref-tag" title="YEAR(p1) — anno della data (es. 2025)">YEAR</span>
+                                            <span class="ref-tag" title="MONTH(p1) — mese (1-12)">MONTH</span>
+                                            <span class="ref-tag" title="DAY(p1) — giorno del mese (1-31)">DAY</span>
+                                            <span class="ref-tag" title="WEEK(p1) — settimana dell'anno (1-53)">WEEK</span>
+                                            <span class="ref-tag" title="ISOWEEK(p1) — settimana ISO (1-53)">ISOWEEK</span>
+                                            <span class="ref-tag" title="ISOYEAR(p1) — anno ISO">ISOYEAR</span>
+                                            <span class="ref-tag" title="TIME(p1) — ora in formato HH:MM:SS">TIME</span>
+                                            <span class="ref-tag" title="SET_TIME(p1, p2) — assegna ore/minuti a data [solo Oracle]">SET_TIME</span>
+                                        </div>
+                                    </div>
+                                    <div class="ref-category">
+                                        <div class="ref-cat-title">Matematiche</div>
+                                        <div class="ref-tags">
+                                            <span class="ref-tag" title="ABS(p1) — valore assoluto">ABS</span>
+                                            <span class="ref-tag" title="ROUND(p1 [,p2]) — arrotondamento">ROUND</span>
+                                            <span class="ref-tag" title="TRUNC(p1) — parte intera">TRUNC</span>
+                                            <span class="ref-tag" title="MOD(p1, p2) — resto divisione intera">MOD</span>
+                                            <span class="ref-tag" title="POW(p1, p2) — p1 elevato a p2">POW</span>
+                                            <span class="ref-tag" title="SQRT(p1) — radice quadrata">SQRT</span>
+                                            <span class="ref-tag" title="LOGN(p1) — logaritmo naturale">LOGN</span>
+                                            <span class="ref-tag" title="LOG10(p1) — logaritmo base 10">LOG10</span>
+                                            <span class="ref-tag" title="COS(p1) / SIN(p1) / TAN(p1) — funzioni trigonometriche">COS / SIN / TAN</span>
+                                        </div>
+                                    </div>
+                                    <div class="ref-category">
+                                        <div class="ref-cat-title">Utilità</div>
+                                        <div class="ref-tags">
+                                            <span class="ref-tag" title="NVL(p1, p2) — sostituisce NULL con p2">NVL</span>
+                                            <span class="ref-tag" title="NANVL(p1, p2) — sostituisce NaN con p2">NANVL</span>
+                                            <span class="ref-tag" title="TO_NUMBER(p1) — converte stringa in numero">TO_NUMBER</span>
+                                            <span class="ref-tag" title="TO_NUMBER_SEP(p1, sep) — converte con separatore decimale [solo Oracle]">TO_NUMBER_SEP</span>
+                                            <span class="ref-tag" title="TO_CHAR(p1) — converte in stringa">TO_CHAR</span>
+                                            <span class="ref-tag" title="PROPERTY(p1) — valore della proprietà p1 (da properties.cfg o variabili d'ambiente)">PROPERTY</span>
+                                        </div>
+                                    </div>
+                                    <div class="ref-category">
+                                        <div class="ref-cat-title">Contesto JFlex</div>
+                                        <div class="ref-tags">
+                                            <span class="ref-tag ref-tag-jflex" title="USERNAME() — utente JFlex corrente">USERNAME</span>
+                                            <span class="ref-tag ref-tag-jflex" title="GROUPNAME() — gruppo dell'utente">GROUPNAME</span>
+                                            <span class="ref-tag ref-tag-jflex" title="COMPANY() — codice azienda corrente">COMPANY</span>
+                                            <span class="ref-tag ref-tag-jflex" title="PLANT() — codice stabilimento corrente">PLANT</span>
+                                            <span class="ref-tag ref-tag-jflex" title="LANG() — lingua text del login">LANG</span>
+                                            <span class="ref-tag ref-tag-jflex" title="OLANG() — lingua ufficiale del gruppo">OLANG</span>
+                                            <span class="ref-tag ref-tag-jflex" title="DLANG() — lingua data del login">DLANG</span>
+                                            <span class="ref-tag ref-tag-jflex" title="BPTYPE() — tipo Business Partner (solo web; desktop: 'UNDEFINED')">BPTYPE</span>
+                                            <span class="ref-tag ref-tag-jflex" title="BPCODE() — codice Business Partner (solo web; desktop: 'UNDEFINED')">BPCODE</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Parametri e Operatori Variabili -->
+                                <div class="ref-special">
+                                    <div class="ref-special-item">
+                                        <div class="ref-cat-title">Parametri</div>
+                                        <div class="ref-tags">
+                                            <span class="ref-tag" title="?nome — parametro opzionale (escluso dalla query se non valorizzato)">?nome</span>
+                                            <span class="ref-tag" title="?!nome — parametro obbligatorio">?!nome</span>
+                                        </div>
+                                    </div>
+                                    <div class="ref-special-item">
+                                        <div class="ref-cat-title">Operatori variabili</div>
+                                        <div class="ref-tags">
+                                            <span class="ref-tag" title="# — operatore variabile, default =">&#35;</span>
+                                            <span class="ref-tag" title="#= — default: uguale (=)">#=</span>
+                                            <span class="ref-tag" title="#> — default: maggiore (>)">#&gt;</span>
+                                            <span class="ref-tag" title="#>= — default: maggiore o uguale (>=)">#&gt;=</span>
+                                            <span class="ref-tag" title="#< — default: minore (<)">#&lt;</span>
+                                            <span class="ref-tag" title="#<= — default: minore o uguale (<=)">#&lt;=</span>
+                                            <span class="ref-tag" title="#!= — default: diverso (!=)">#!=</span>
+                                            <span class="ref-tag" title="#BETWEEN — default: range []">#BETWEEN</span>
+                                        </div>
+                                    </div>
+                                    <div class="ref-special-item">
+                                        <div class="ref-cat-title">Aggregazione</div>
+                                        <div class="ref-tags">
+                                            <span class="ref-tag" title="COUNT(*) / COUNT(DISTINCT expr)">COUNT</span>
+                                            <span class="ref-tag" title="SUM(expr)">SUM</span>
+                                            <span class="ref-tag" title="AVG(expr)">AVG</span>
+                                            <span class="ref-tag" title="MIN(expr)">MIN</span>
+                                            <span class="ref-tag" title="MAX(expr)">MAX</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
