@@ -142,6 +142,10 @@ function dedupeIndexColumns(list) {
 
 
 // --- Card Toggle ---
+function toggleTecSQLReference() {
+    $('tecsql-reference').classList.toggle('open');
+}
+
 function toggleCard(cardId) {
     const card = $(cardId);
     if (card.classList.contains('disabled')) return;
