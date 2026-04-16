@@ -150,5 +150,5 @@ Apri il browser su: **http://localhost:5000**
 **Applicazione:** JTNT - Jflex Table Name Translator  
 **Versione:** 2.0  
 **Data creazione:** 11-12-2025  
-**Autore:** Angelo J. Marin  
+**Autore:** Kseniia Hrytskova and Angelo J. Marin  
 **Tecnologie:** Python, Flask, Oracle, HTML5, CSS3, JavaScript
