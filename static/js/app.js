@@ -15,6 +15,8 @@ let currentIndexes = [];
 let currentIndexColumns = [];
 let hasSearchResults = false;
 let isTranslating = false;
+let currentResults = [];
+let sortState = { col: null, asc: true };
 
 // --- DOM Elements ---
 const $ = id => document.getElementById(id);
@@ -162,6 +164,13 @@ function toggleCard(cardId) {
     if (cardId === 'results-card' && isExpanding) {
         searchCard.classList.remove('expanded');
     }
+}
+
+function initTableSort() {
+    document.querySelectorAll('#tab-fields thead th[data-col]').forEach(th => {
+        th.style.cursor = 'pointer';
+        th.addEventListener('click', () => sortResults(th.dataset.col));
+    });
 }
 
 function setResultsEnabled(enabled) {
@@ -577,25 +586,65 @@ function renderIndexes(data) {
     });
 }
 
-function renderResults(data) {
+function renderResults(data, keepSort = false) {
+    if (!keepSort) {
+        currentResults = data.slice();
+        sortState = { col: null, asc: true };
+        // Reset header indicators
+        document.querySelectorAll('#tab-fields thead th[data-col]').forEach(th => {
+            th.removeAttribute('data-sort');
+        });
+    }
+
     resultsBody.innerHTML = '';
-    data.forEach(row => {
+    currentResults.forEach(row => {
         const tr = document.createElement('tr');
         if (row.notFound) tr.className = 'not-found';
-        tr.innerHTML = `
-            <td>${row.TABELLA_FISICA}</td>
-            <td>${row.CAMPO_FISICO}</td>
-            <td>${row.TABELLA_LOGICA}</td>
-            <td>${row.CAMPO_LOGICO}</td>
-            <td>${row.TIPO}</td>
-            <td>${row.AMPIEZZA}</td>
-            <td>${row.DECIMALI}</td>
-        `;
-        tr.querySelectorAll('td').forEach(td => {
+        const cols = ['TABELLA_FISICA','CAMPO_FISICO','TABELLA_LOGICA','CAMPO_LOGICO','TIPO','AMPIEZZA','DECIMALI'];
+        cols.forEach(col => {
+            const td = document.createElement('td');
+            td.textContent = row[col] ?? '';
             td.addEventListener('click', () => copyCell(td));
+            tr.appendChild(td);
         });
         resultsBody.appendChild(tr);
     });
+}
+
+function sortResults(col) {
+    if (sortState.col === col) {
+        sortState.asc = !sortState.asc;
+    } else {
+        sortState.col = col;
+        sortState.asc = true;
+    }
+
+    currentResults.sort((a, b) => {
+        let va = a[col] ?? '';
+        let vb = b[col] ?? '';
+        // Numeric sort for AMPIEZZA / DECIMALI
+        if (col === 'AMPIEZZA' || col === 'DECIMALI') {
+            va = parseFloat(va) || 0;
+            vb = parseFloat(vb) || 0;
+            return sortState.asc ? va - vb : vb - va;
+        }
+        va = String(va).toLowerCase();
+        vb = String(vb).toLowerCase();
+        if (va < vb) return sortState.asc ? -1 : 1;
+        if (va > vb) return sortState.asc ? 1 : -1;
+        return 0;
+    });
+
+    // Update header indicators
+    document.querySelectorAll('#tab-fields thead th[data-col]').forEach(th => {
+        if (th.dataset.col === col) {
+            th.setAttribute('data-sort', sortState.asc ? 'asc' : 'desc');
+        } else {
+            th.removeAttribute('data-sort');
+        }
+    });
+
+    renderResults(null, true);
 }
 
 // --- Easter Egg: Confetti ---
@@ -978,13 +1027,11 @@ btnTranslate.addEventListener('click', async () => {
 
 // --- Event: Copy All Fields ---
 btnCopyFields.addEventListener('click', () => {
-    const rows = resultsBody.querySelectorAll('tr');
-    let text = 'TABELLA_FISICA\tCAMPO_FISICO\tTABELLA_LOGICA\tCAMPO_LOGICO\tTIPO\tAMPIEZZA\tDECIMALI\n';
-    rows.forEach(row => {
-        const cells = row.querySelectorAll('td');
-        if (cells.length === 7) {
-            text += Array.from(cells).map(c => c.textContent).join('\t') + '\n';
-        }
+    if (currentResults.length === 0) return;
+    const cols = ['TABELLA_FISICA','CAMPO_FISICO','TABELLA_LOGICA','CAMPO_LOGICO','TIPO','AMPIEZZA','DECIMALI'];
+    let text = cols.join('\t') + '\n';
+    currentResults.forEach(row => {
+        text += cols.map(c => row[c] ?? '').join('\t') + '\n';
     });
     navigator.clipboard.writeText(text).then(() => {
         const original = btnCopyFields.innerHTML;
@@ -1205,6 +1252,7 @@ async function tryAutoReconnect() {
 
 // --- Init ---
 initTabs();
+initTableSort();
 clearTranslateStatus();
 updateTranslateButtonState();
 loadConnectionHistory();
