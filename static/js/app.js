@@ -232,9 +232,34 @@ function setActiveTab(containerId, tabId) {
 }
 
 // --- Clipboard ---
+// navigator.clipboard requires HTTPS or localhost.
+// On plain HTTP (Apache server) it is unavailable — fall back to execCommand.
+function writeToClipboard(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        return navigator.clipboard.writeText(text);
+    }
+    // Fallback: create a temporary textarea, select it, copy, remove.
+    return new Promise((resolve, reject) => {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none;';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        try {
+            document.execCommand('copy');
+            resolve();
+        } catch (e) {
+            reject(e);
+        } finally {
+            document.body.removeChild(ta);
+        }
+    });
+}
+
 function copyCell(td) {
     const text = td.textContent.trim();
-    navigator.clipboard.writeText(text).then(() => {
+    writeToClipboard(text).then(() => {
         td.classList.add('copied');
         setTimeout(() => td.classList.remove('copied'), 1000);
     });
@@ -1033,7 +1058,7 @@ btnCopyFields.addEventListener('click', () => {
     currentResults.forEach(row => {
         text += cols.map(c => row[c] ?? '').join('\t') + '\n';
     });
-    navigator.clipboard.writeText(text).then(() => {
+    writeToClipboard(text).then(() => {
         const original = btnCopyFields.innerHTML;
         btnCopyFields.innerHTML = '<svg class="icon"><use href="#icon-copy"/></svg> Copiato!';
         setTimeout(() => btnCopyFields.innerHTML = original, 2000);
@@ -1061,7 +1086,7 @@ btnCopyIndexes.addEventListener('click', () => {
         text += '\n';
     });
     
-    navigator.clipboard.writeText(text).then(() => {
+    writeToClipboard(text).then(() => {
         const original = btnCopyIndexes.innerHTML;
         btnCopyIndexes.innerHTML = '<svg class="icon"><use href="#icon-copy"/></svg> Copiato!';
         setTimeout(() => btnCopyIndexes.innerHTML = original, 2000);
